@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import Searchbar from './Searchbar/Searchbar';
 import { fetchImages } from './api/api';
 import { ImageGallery } from './ImageGallery/ImageGallery';
@@ -7,87 +7,84 @@ import { LoaderRing } from './Loader/Loader';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Modal from './Modal/Modal';
-class App extends Component {
-  state = {
-    galarry: [],
-    page: 1,
-    largeImageURL: '',
-    searchName: '',
-    status: '',
-    modal: false,
-  };
 
-  async componentDidUpdate(_, prevState) {
-    const prevSearch = prevState.searchName;
-    const newSearch = this.state.searchName;
-    const prevPage = prevState.page;
-    const nextPage = this.state.page;
+export default function App() {
+  const [galarry, setGalarry] = useState([]);
+  const [page, setPage] = useState(1);
+  const [largeImageUrl, setLargeImageUrl] = useState('');
+  const [searchName, setSearchName] = useState('');
+  const [status, setStatus] = useState('');
+  const [modal, setModal] = useState(false);
 
-    if (prevSearch !== newSearch || prevPage !== nextPage) {
-      this.setState({ status: 'pending' });
+  useEffect(() => {
+    if (searchName === '') {
+      return;
+    }
+    async function renderImages() {
+      setStatus('pending');
 
       try {
-        const imageList = await fetchImages(newSearch, nextPage);
-        this.setState(prevState => ({
-          galarry: [...prevState.galarry, ...imageList],
-          status: 'resolved',
-        }));
+        const imageList = await fetchImages(searchName, page);
+
+        setGalarry(galarry => [...galarry, ...imageList]);
+        setStatus('resolved');
+        if (imageList.length === 0) {
+          toast.error(
+            'Sorry, there are no images matching your search query. Please, try again.',
+            {
+              autoClose: 2000,
+            }
+          );
+        }
       } catch (error) {
         toast.error('Ops, something go wrong. Please reload the page!', {
           autoClose: 2000,
         });
-        this.setState({
-          status: 'rejected',
-        });
+        setStatus('rejected');
       }
     }
-  }
+    renderImages();
+  }, [page, searchName]);
 
-  onSubmit = searchPicture => {
-    this.setState({ searchName: searchPicture, page: 1, galarry: [] });
+  const onSubmit = searchPicture => {
+    setSearchName(searchPicture);
+    setPage(1);
+    setGalarry([]);
   };
 
-  onClickLoadMore = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
+  const onClickLoadMore = () => {
+    setPage(page => page + 1);
   };
-  onClickToggleModal = largeImage => {
-    this.setState({ modal: !this.state.modal, largeImageURL: largeImage });
+  const onClickToggleModal = largeImage => {
+    setModal(!modal);
+    setLargeImageUrl(largeImage);
   };
-  onClickBackDrop = () => {
-    this.setState({ modal: !this.state.modal, largeImageURL: '' });
+  const onClickBackDrop = () => {
+    setModal(!modal);
+    setLargeImageUrl('');
   };
 
-  render() {
-    const { galarry, status, modal, largeImageURL } = this.state;
-
-    return (
-      <div>
-        <Searchbar onSubmit={this.onSubmit} />
-        <ImageGallery gallery={galarry} onClick={this.onClickToggleModal} />
-        {status === 'pending' && <LoaderRing />}
-        {(galarry.length === 12 || galarry.length > 12) && (
-          <ButtonLoadMore onClick={this.onClickLoadMore} />
-        )}
-        {modal && (
-          <Modal image={largeImageURL} onClick={this.onClickBackDrop} />
-        )}
-        <ToastContainer
-          position="top-right"
-          autoClose={2000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-        />
-      </div>
-    );
-  }
+  return (
+    <div>
+      <Searchbar onSubmitSearch={onSubmit} />
+      <ImageGallery gallery={galarry} onClick={onClickToggleModal} />
+      {status === 'pending' && <LoaderRing />}
+      {(galarry.length === 12 || galarry.length > 12) && (
+        <ButtonLoadMore onClick={onClickLoadMore} />
+      )}
+      {modal && <Modal image={largeImageUrl} onClick={onClickBackDrop} />}
+      <ToastContainer
+        position="top-right"
+        autoClose={2000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+    </div>
+  );
 }
-
-export default App;
